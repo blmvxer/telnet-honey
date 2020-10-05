@@ -1,4 +1,4 @@
-import strutils, net
+import strutils, net, os
 
 var
   command: string
@@ -15,12 +15,18 @@ var
   secretText = open("honeyFiles/secret.txt", fmRead)
   clientAddr: string
 
-server.setSockOpt(OptReuseAddr, true)
-server.bindAddr(Port(23))
-server.listen()
-stdout.writeLine("[!] Starting telnetHoney...\n\n")
-stdout.writeLine("[+] Listening for new connections on port 23...")
-server.accept(client)
+
+proc runServer() =
+  server.setSockOpt(OptReuseAddr, true)
+  server.bindAddr(Port(23))
+  server.listen()
+  stdout.writeLine("[!] Starting telnetHoney...\n\n")
+  stdout.writeLine("[+] Listening for new connections on port 23...")
+  server.accept(client)
+  client.send("""
+Nim Telnet Server
+    v 1.3.1p3
+""")
 
 proc getDirConf(getDir: string) =
   var dirConf = open("honeyFiles/directory.conf", fmRead)
@@ -80,12 +86,17 @@ proc shell() =
       client.send("Command not allowed\n")
 
 proc login(): bool =
+  sleep(10000)
   clientAddr = $getPeerAddr(client)
   stdout.writeLine("[+]: client connected " & clientAddr)
   client.send("Username:")
   let user: string = client.recvLine()
+  if user == "":
+    discard
   client.send("Password:")
   let pass: string = client.recvLine()
+  if pass == "":
+    discard
   if user.contains("admin") and pass == "admin":
     return true
   else:
@@ -94,6 +105,12 @@ proc login(): bool =
 
 
 proc main() = 
+  try:
+    runServer()
+  except OSError:
+    sleep(5000)
+    runServer()
+
   var
     attempts: int
 
